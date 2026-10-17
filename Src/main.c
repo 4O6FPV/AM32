@@ -722,6 +722,9 @@ void loadEEpromSettings()
 #ifdef WCH
             TIM1->BDTR |= dead_time_override;
 #endif
+#ifdef TI_MSPM0
+        setDeadTime(DEAD_TIME + dead_time_override);
+#endif
         }
         if (eepromBuffer.limits.temperature < 70 || eepromBuffer.limits.temperature > 140) {
             eepromBuffer.limits.temperature = 255;
@@ -1657,6 +1660,9 @@ void zcfoundroutine()
 //	COM_TIMER->MSR[0] = waitTime;
 	COM_TIMER->MR[0] = waitTime;
 #endif
+#ifdef TI_MSPM0
+    SET_COM_TIMER_RELOAD(waitTime);
+#endif
 
     commutate();
     bemfcounter = 0;
@@ -1775,15 +1781,21 @@ static void checkDeviceInfo(void)
         return;
     }
     // change eeprom_address based on the code in the bootloaders device info
+#ifdef TI_MSPM0
+    // MSPM0 main flash starts at 0x00000000, not 0x08000000
+#define DEVINFO_FLASH_BASE 0x00000000
+#else
+#define DEVINFO_FLASH_BASE 0x08000000
+#endif
     switch (devinfo->deviceInfo[4]) {
         case 0x1f:
-            eeprom_address = 0x08007c00;
+            eeprom_address = DEVINFO_FLASH_BASE + 0x7c00;
             break;
         case 0x35:
-            eeprom_address = 0x0800f800;
+            eeprom_address = DEVINFO_FLASH_BASE + 0xf800;
             break;
         case 0x2b:
-            eeprom_address = 0x0801f800;
+            eeprom_address = DEVINFO_FLASH_BASE + 0x1f800;
             break;
     }
 #endif
@@ -2164,6 +2176,10 @@ if(zero_crosses < 5){
 #endif
 #ifdef WCH
             startADCConversion( );
+            converted_degrees = getConvertedDegrees(ADC_raw_temp);
+#endif
+#ifdef TI_MSPM0
+            startADCConversion();
             converted_degrees = getConvertedDegrees(ADC_raw_temp);
 #endif
 	        degrees_celsius = converted_degrees;

@@ -2760,6 +2760,19 @@
 #define USE_INVERTED_LOW
 #endif
 
+#ifdef NDAA_REF_G3507
+// Reference pin map for an MSPM0G3507 (VQFN-32, RHB) based ESC.
+// Untested on hardware - see Mcu/g3507/README.md before flying anything.
+#define FILE_NAME "NDAA_REF_G3507"
+#define FIRMWARE_NAME "G3507 Ref   "
+#define DEAD_TIME 60
+#define HARDWARE_GROUP_TI_G3507_A
+#define TARGET_VOLTAGE_DIVIDER 110
+#define MILLIVOLT_PER_AMP 20
+#define CURRENT_OFFSET 0
+#define USE_SERIAL_TELEMETRY
+#endif
+
 #ifdef GEN_64K_G071
 #define FILE_NAME "GEN_64K_G071"
 #define FIRMWARE_NAME "G071 64kESC "
@@ -5757,6 +5770,74 @@
 
 #endif
 
+/************************************ TI MSPM0G3507 Hardware Groups
+ * ************************************************/
+
+#ifdef HARDWARE_GROUP_TI_G3507_A
+// VQFN-32 (RHB). Pin functions checked against the IOMUX_PINCMx_PF_*
+// definitions in TI's mspm0g350x.h. Each output is described by its GPIOA
+// bit, its IOMUX PINCM index and the peripheral function used for PWM.
+#define MCU_G3507
+
+// Gate outputs on TIMA0 (CCx = high side, CCx_CMPL = low side)
+#define PHASE_A_GPIO_HIGH       8                   // PA8  pin 12
+#define PHASE_A_IOMUX_HIGH      IOMUX_PINCM19
+#define PHASE_A_PF_HIGH         IOMUX_PINCM19_PF_TIMA0_CCP0
+#define PHASE_A_GPIO_LOW        9                   // PA9  pin 13
+#define PHASE_A_IOMUX_LOW       IOMUX_PINCM20
+#define PHASE_A_PF_LOW          IOMUX_PINCM20_PF_TIMA0_CCP0_CMPL
+
+#define PHASE_B_GPIO_HIGH       3                   // PA3  pin 7
+#define PHASE_B_IOMUX_HIGH      IOMUX_PINCM8
+#define PHASE_B_PF_HIGH         IOMUX_PINCM8_PF_TIMA0_CCP1
+#define PHASE_B_GPIO_LOW        4                   // PA4  pin 8
+#define PHASE_B_IOMUX_LOW       IOMUX_PINCM9
+#define PHASE_B_PF_LOW          IOMUX_PINCM9_PF_TIMA0_CCP1_CMPL
+
+#define PHASE_C_GPIO_HIGH       7                   // PA7  pin 11
+#define PHASE_C_IOMUX_HIGH      IOMUX_PINCM14
+#define PHASE_C_PF_HIGH         IOMUX_PINCM14_PF_TIMA0_CCP2
+#define PHASE_C_GPIO_LOW        6                   // PA6  pin 10
+#define PHASE_C_IOMUX_LOW       IOMUX_PINCM11
+#define PHASE_C_PF_LOW          IOMUX_PINCM11_PF_TIMA0_CCP2_CMPL
+
+// BEMF sensing on COMP0: phases on positive inputs, virtual neutral on IN0-
+#define PHASE_A_COMP            COMP_CTL0_IPSEL_CH_0  // PA26 pin 30 COMP0_IN0+
+#define PHASE_A_COMP_IOMUX      IOMUX_PINCM59
+#define PHASE_B_COMP            COMP_CTL0_IPSEL_CH_2  // PA14 pin 18 COMP0_IN2+
+#define PHASE_B_COMP_IOMUX      IOMUX_PINCM36
+#define PHASE_C_COMP            COMP_CTL0_IPSEL_CH_3  // PA15 pin 19 COMP0_IN3+ (keep DAC0 off)
+#define PHASE_C_COMP_IOMUX      IOMUX_PINCM37
+#define COMMON_COMP             COMP_CTL0_IMSEL_CH_0  // PA27 pin 31 COMP0_IN0-
+#define COMMON_COMP_IOMUX       IOMUX_PINCM60
+
+// DShot / PWM input: TIMA1 CC0 (PD1, 8-bit prescaler, 16-bit counter)
+#define INPUT_PIN               10                  // PA10 pin 14
+#define INPUT_PIN_IOMUX         IOMUX_PINCM21
+#define INPUT_PIN_PF            IOMUX_PINCM21_PF_TIMA1_CCP0
+#define IC_TIMER_REGISTER       TIMA1
+#define IC_TIMER_IRQ            TIMA1_INT_IRQn
+#define INPUT_DMA_CHANNEL       0                   // full-featured channel
+#define INPUT_EVENT_CHANNEL     1                   // generic event route TIMA1 -> DMA FSUB_0
+
+// Serial telemetry: UART2 TX
+#define SERIAL_TELEMETRY_UART   UART2
+#define TELEM_TX_IOMUX          IOMUX_PINCM53         // PA23 pin 27
+#define TELEM_TX_PF             IOMUX_PINCM53_PF_UART2_TX
+#define TELEM_DMA_CHANNEL       1
+#define TELEM_DMA_TRIGGER       DMA_UART2_TX_TRIG
+
+// Analog: current on ADC0, battery voltage on ADC1, die temperature on ADC0
+#define CURRENT_ADC_CHANNEL     2                   // PA25 pin 29 A0_2
+#define CURRENT_ADC_IOMUX       IOMUX_PINCM55
+#define VOLTAGE_ADC_CHANNEL     7                   // PA21 pin 25 A1_7
+#define VOLTAGE_ADC_IOMUX       IOMUX_PINCM46
+#define TEMP_ADC_CHANNEL        11                  // internal sensor, ADC0
+
+// PA18 (pin 22) is the default ROM bootloader invoke pin (active high at
+// reset): pull it down on the board and leave it unused.
+#endif
+
 /************************************ MCU COMMON PERIPHERALS
  * **********************************************/
 
@@ -6060,6 +6141,29 @@
 #define COMP0_IRQ 					CMP0_IRQn
 #define COMP1_IRQ 					CMP1_IRQn
 #define USE_ADC
+#endif
+
+#ifdef MCU_G3507
+#define TI_MSPM0
+#define CPU_FREQUENCY_MHZ 80                        // MCLK from SYSPLL, PD1 bus clock
+#define ULPCLK_FREQUENCY_MHZ 40                     // PD0 bus clock (TIMG0, TIMG8)
+#ifndef EEPROM_START_ADD
+#define EEPROM_START_ADD (uint32_t)0x0001F800       // MSPM0 flash starts at 0x0, 1 KB sectors
+#endif
+#define INTERVAL_TIMER TIMG7                        // PD1, 2 MHz
+#define TEN_KHZ_TIMER TIMG0                         // PD0, 1 MHz
+#define UTILITY_TIMER TIMG8                         // PD0, 1 MHz
+#define COM_TIMER TIMG6                             // PD1, 2 MHz
+#define APPLICATION_ADDRESS 0x00001000
+#define MAIN_COMP COMP0
+#ifndef TARGET_MIN_BEMF_COUNTS
+#define TARGET_MIN_BEMF_COUNTS 3
+#endif
+#define COMPARATOR_IRQ COMP0_INT_IRQn               // INT_GROUP1, shared with GPIO
+#define COM_TIMER_IRQ TIMG6_INT_IRQn
+#define IC_DMA_IRQ_NAME DMA_INT_IRQn
+#define USE_ADC
+#define DSHOT_PRIORITY_THRESHOLD 60
 #endif
 
 #ifdef MCU_CH32V203
