@@ -32,7 +32,10 @@ void telem_UART_Init(void)
     DL_UART_Main_enablePower(SERIAL_TELEMETRY_UART);
     delay_cycles(16);
 
+    /* Open drain (HIZ1), like LL_GPIO_OUTPUT_OPENDRAIN on the G071 targets: the
+     * four MCUs of a 4-in-1 share one TLM wire and a single pull-up. */
     pincmSetFunction(TELEM_TX_IOMUX, TELEM_TX_PF);
+    IOMUX->SECCFG.PINCM[TELEM_TX_IOMUX] |= IOMUX_PINCM_HIZ1_ENABLE;
 
     DL_UART_Main_setClockConfig(SERIAL_TELEMETRY_UART, (DL_UART_Main_ClockConfig*)&uartClock);
     DL_UART_Main_init(SERIAL_TELEMETRY_UART, (DL_UART_Main_Config*)&uartConfig);
